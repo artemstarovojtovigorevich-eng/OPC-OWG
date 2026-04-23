@@ -1,4 +1,40 @@
 services:
+  loki:
+    image: grafana/loki:3.2.0
+    container_name: loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  grafana:
+    image: grafana/grafana:11.5.0
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    restart: unless-stopped
+    networks:
+      - app-network
+    volumes:
+      - grafana-data:/var/lib/grafana
+
+  promtail:
+    image: grafana/promtail:3.2.0
+    container_name: promtail
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ./promtail-config.yml:/etc/promtail/config.yml:ro
+    command: -config.file=/etc/promtail/config.yml
+    restart: unless-stopped
+    networks:
+      - app-network
+
   opcua-test-server:
     image: mcr.microsoft.com/iotedge/opc-plc:latest
     container_name: opcua-test-server
@@ -16,6 +52,8 @@ services:
       --ft=uint
       --gn=5
     restart: unless-stopped
+    networks:
+      - app-network
 
   opcua-proxy21:
     build:
@@ -36,6 +74,8 @@ services:
       opcua-test-server:
         condition: service_started
     restart: unless-stopped
+    networks:
+      - app-network
 
   opcua-proxy12:
     build:
@@ -51,3 +91,12 @@ services:
       - LOG_LEVEL=info
       - LOG_ENCODING=console
     restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  grafana-data:
