@@ -173,8 +173,14 @@ func (app *App) runDiscovery(ctx context.Context) error {
 
 	app.log.Info("Found nodes", "count", len(nodes))
 
-	for _, n := range nodes {
-		storage.SaveNode(n.ID, n.Name, n.DataType)
+	saveCount := len(nodes)
+	if saveCount > 15 {
+		saveCount = 15
+		app.log.Info("Limiting to 15 nodes for UDP packet size")
+	}
+
+	for i := 0; i < saveCount; i++ {
+		storage.SaveNode(nodes[i].ID, nodes[i].Name, nodes[i].DataType)
 	}
 
 	return nil
@@ -266,8 +272,13 @@ func (app *App) pollLoop(ctx context.Context) {
 			}
 
 			if len(data) > 0 {
-				nodeInfos := make([]opcua.NodeInfo, len(data))
-				for i, d := range data {
+				sendData := data
+				if len(sendData) > 15 {
+					sendData = sendData[:15]
+				}
+
+				nodeInfos := make([]opcua.NodeInfo, len(sendData))
+				for i, d := range sendData {
 					nodeInfos[i] = opcua.NodeInfo{
 						ID:        d.NodeID,
 						Value:     d.Value,
@@ -276,12 +287,12 @@ func (app *App) pollLoop(ctx context.Context) {
 				}
 
 				if app.cfg.GetReadOnly() {
-					app.log.Info("Read values", "count", len(data))
+					app.log.Info("Read values", "count", len(sendData))
 				} else {
 					if err := app.sender.SendNodesWithMetadata(app.cfg.GetOPCEndpoint(), nodeInfos); err != nil {
 						app.log.Error("Failed to send", "error", err)
 					} else {
-						app.log.Info("Sent", "count", len(data))
+						app.log.Info("Sent", "count", len(sendData))
 					}
 				}
 			}

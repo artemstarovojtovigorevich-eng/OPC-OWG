@@ -23,6 +23,16 @@ func Init() error {
 		return fmt.Errorf("failed to open database: %w", err)
 	}
 
+	_, err = db.Exec("PRAGMA busy_timeout = 5000")
+	if err != nil {
+		return fmt.Errorf("failed to set busy_timeout: %w", err)
+	}
+
+	_, err = db.Exec("PRAGMA journal_mode = WAL")
+	if err != nil {
+		return fmt.Errorf("failed to set journal_mode: %w", err)
+	}
+
 	if err := createTables(db); err != nil {
 		return fmt.Errorf("failed to create tables: %w", err)
 	}
