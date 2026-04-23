@@ -125,13 +125,13 @@ func (r *Reader) ReadMultiple(ctx context.Context, nodes []Node) ([]DataValue, e
 	return results, nil
 }
 
-func (r *Reader) BrowseAllNodes(ctx context.Context, browsePath string, namespaceFilter int) ([]Node, error) {
+func (r *Reader) BrowseAllNodes(ctx context.Context, browsePath string, namespaceFilter int) ([]NodeInfo, error) {
 	nodes, err := r.BrowseAllNamespaces(ctx, browsePath, 0)
 	if err != nil {
 		return nil, err
 	}
 
-	var result []Node
+	var result []NodeInfo
 	for _, n := range nodes {
 		id, err := ua.ParseNodeID(n.ID)
 		if err != nil {
@@ -143,7 +143,7 @@ func (r *Reader) BrowseAllNodes(ctx context.Context, browsePath string, namespac
 			continue
 		}
 
-		result = append(result, Node{ID: n.ID, Name: n.Name})
+		result = append(result, n)
 	}
 
 	return result, nil

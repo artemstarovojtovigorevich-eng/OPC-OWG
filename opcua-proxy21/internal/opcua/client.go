@@ -9,6 +9,12 @@ import (
 	"github.com/gopcua/opcua/ua"
 )
 
+type ClientInterface interface {
+	Connect(ctx context.Context) error
+	Disconnect(ctx context.Context) error
+	NamespaceArray(ctx context.Context) ([]string, error)
+}
+
 type Client struct {
 	client     *opcua.Client
 	endpoint   string
