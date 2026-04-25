@@ -58,14 +58,19 @@ func (s *UDPServer) Start(ctx context.Context) error {
 		return fmt.Errorf("failed to start OPC UA server: %w", err)
 	}
 
+	srvNS, _ := s.srv.Namespace(0)
+	rootObj := srvNS.Objects()
+
+	for i := 0; i < 2; i++ {
+		server.NewNodeNameSpace(s.srv, fmt.Sprintf("NS%d", i+1))
+	}
+
 	ns := server.NewNodeNameSpace(s.srv, "UDStream")
 	s.ns = ns
 
 	nsID := ns.ID()
 	s.logger.Info("OPC UA server started", "namespace", nsID)
 
-	srvNS, _ := s.srv.Namespace(0)
-	rootObj := srvNS.Objects()
 	nnsObj := ns.Objects()
 	rootObj.AddRef(nnsObj, id.HasComponent, true)
 
@@ -112,22 +117,6 @@ func (s *UDPServer) updateNode(msg *UDMessage) {
 	if err != nil {
 		s.logger.Error("Failed to parse node ID", "node", msg.NodeId, "error", err)
 		return
-	}
-
-	// Map source namespace to UDStream namespace
-	targetNS := s.ns.ID()
-	if nodeID.Namespace() != targetNS {
-		switch nodeID.Type() {
-		case ua.NodeIDTypeNumeric:
-			nodeID = ua.NewNumericNodeID(targetNS, nodeID.IntID())
-		case ua.NodeIDTypeString:
-			nodeID = ua.NewStringNodeID(targetNS, nodeID.StringID())
-		case ua.NodeIDTypeGUID:
-			nodeID = ua.NewGUIDNodeID(targetNS, nodeID.StringID())
-		default:
-			nodeID = ua.NewNumericNodeID(targetNS, nodeID.IntID())
-		}
-		s.logger.Info("Mapped namespace", "from", msg.NodeId, "to", nodeID.String())
 	}
 
 	existingNode := s.ns.Node(nodeID)

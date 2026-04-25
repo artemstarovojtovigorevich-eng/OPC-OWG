@@ -59,6 +59,8 @@ services:
       dockerfile: Dockerfile
     container_name: opcua-proxy21
     network_mode: "host"
+    ports:
+      - "8080:8080"
     environment:
       - OPC_ENDPOINT=opc.tcp://127.0.0.1:50000
       - UDP_DEST=127.0.0.1:50001
