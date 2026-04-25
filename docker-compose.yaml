@@ -39,8 +39,7 @@ services:
   opcua-test-server:
     image: mcr.microsoft.com/iotedge/opc-plc:latest
     container_name: opcua-test-server
-    ports:
-      - "50000:50000"
+    network_mode: "host"
     command: >
       --pn=50000
       --autoaccept
@@ -53,38 +52,30 @@ services:
       --ft=uint
       --gn=5
     restart: unless-stopped
-    networks:
-      - app-network
 
   opcua-proxy21:
     build:
       context: opcua-proxy21
       dockerfile: Dockerfile
     container_name: opcua-proxy21
-    ports:
-      - "8080:8080"
+    network_mode: "host"
     environment:
-      - OPC_ENDPOINT=opc.tcp://opcua-test-server:50000
-      - UDP_DEST=opcua-proxy12:50001
+      - OPC_ENDPOINT=opc.tcp://127.0.0.1:50000
+      - UDP_DEST=127.0.0.1:50001
       - SOURCE_ID=1
       - POLL_INTERVAL=20ms
       - DISCOVER_NODES=true
       - LOG_LEVEL=info
       - LOG_ENCODING=console
-    depends_on:
-      opcua-test-server:
-        condition: service_started
     restart: unless-stopped
-    networks:
-      - app-network
 
   opcua-proxy12:
     build:
       context: opcua-proxy12
       dockerfile: Dockerfile
     container_name: opcua-proxy12
+    network_mode: "host"
     ports:
-      - "4841:4841"
       - "50001:50001/udp"
     environment:
       - OPC_ADDR=0.0.0.0
@@ -92,8 +83,6 @@ services:
       - LOG_LEVEL=info
       - LOG_ENCODING=console
     restart: unless-stopped
-    networks:
-      - app-network
 
 networks:
   app-network:

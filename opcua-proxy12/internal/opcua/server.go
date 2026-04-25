@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"time"
 
+	"opcua-proxy12/internal/store"
+
 	"github.com/gopcua/opcua/id"
 	"github.com/gopcua/opcua/server"
 	"github.com/gopcua/opcua/server/attrs"
 	"github.com/gopcua/opcua/ua"
-	"opcua-proxy12/internal/store"
 )
 
 type UDPServer struct {
@@ -29,8 +30,9 @@ type ServerLogger interface {
 
 func NewUDPServer(opcAddr string, opcPort int, logger ServerLogger) (*UDPServer, error) {
 	host := opcAddr
-	if host == "0.0.0.0" {
-		host = "127.0.0.1"
+
+	if opcAddr == "0.0.0.0" {
+		host = "0.0.0.0"
 	}
 
 	opts := []server.Option{
@@ -112,12 +114,30 @@ func (s *UDPServer) updateNode(msg *UDMessage) {
 		return
 	}
 
+	// Map source namespace to UDStream namespace
+	targetNS := s.ns.ID()
+	if nodeID.Namespace() != targetNS {
+		switch nodeID.Type() {
+		case ua.NodeIDTypeNumeric:
+			nodeID = ua.NewNumericNodeID(targetNS, nodeID.IntID())
+		case ua.NodeIDTypeString:
+			nodeID = ua.NewStringNodeID(targetNS, nodeID.StringID())
+		case ua.NodeIDTypeGUID:
+			nodeID = ua.NewGUIDNodeID(targetNS, nodeID.StringID())
+		default:
+			nodeID = ua.NewNumericNodeID(targetNS, nodeID.IntID())
+		}
+		s.logger.Info("Mapped namespace", "from", msg.NodeId, "to", nodeID.String())
+	}
+
 	existingNode := s.ns.Node(nodeID)
 	if existingNode != nil {
+		s.logger.Info("Updating existing node", "node_id", nodeID.String())
 		s.updateNodeValue(nodeID, msg)
 		return
 	}
 
+	s.logger.Info("Creating new node", "node_id", nodeID.String())
 	s.createNode(nodeID, msg)
 }
 
@@ -165,7 +185,7 @@ func (s *UDPServer) createNode(nodeID *ua.NodeID, msg *UDMessage) {
 
 	s.store.Update(nodeID.String(), msg.Value, timestamp, quality)
 
-	s.logger.Debug("Node created", "node_id", nodeID.String(), "name", varName)
+	s.logger.Info("Node created", "node_id", nodeID.String(), "name", varName)
 }
 
 func (s *UDPServer) updateNodeValue(nodeID *ua.NodeID, msg *UDMessage) {
@@ -203,17 +223,17 @@ func getDataType(v interface{}) *ua.ExpandedNodeID {
 
 func getDataTypeFromString(dataType string, v interface{}) *ua.ExpandedNodeID {
 	typeMap := map[string]uint32{
-		"Boolean":   id.Boolean,
-		"Int16":    id.Int16,
-		"UInt16":   id.UInt16,
-		"Int32":    id.Int32,
-		"UInt32":   id.UInt32,
-		"Int64":    id.Int64,
-		"UInt64":   id.UInt64,
-		"Float":    id.Float,
-		"Double":   id.Double,
-		"String":   id.String,
-		"DateTime": id.DateTime,
+		"Boolean":    id.Boolean,
+		"Int16":      id.Int16,
+		"UInt16":     id.UInt16,
+		"Int32":      id.Int32,
+		"UInt32":     id.UInt32,
+		"Int64":      id.Int64,
+		"UInt64":     id.UInt64,
+		"Float":      id.Float,
+		"Double":     id.Double,
+		"String":     id.String,
+		"DateTime":   id.DateTime,
 		"ByteString": id.ByteString,
 	}
 
